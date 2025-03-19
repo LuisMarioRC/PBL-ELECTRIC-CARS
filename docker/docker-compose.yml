@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  nuvem:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nuvem
+    ports:
+      - "8080:8080"
+    networks:
+      - rede_recarga
+
+  ponto:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+
+  carro:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+
+networks:
+  rede_recarga:
+    driver: bridge
