@@ -1,3 +1,5 @@
+package models
+
 type Ponto struct {
 	ID          string  `json:"id"`
 	Localizacao string  `json:"localizacao"`
