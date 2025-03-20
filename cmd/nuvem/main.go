@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 )
+
+var pontosDisponiveis = make(map[string]bool) // Armazena pontos de recarga disponíveis
+var mu sync.Mutex                             // Para evitar problemas de concorrência
 
 func main() {
 	listener, err := net.Listen("tcp", ":8080")
@@ -25,12 +29,33 @@ func main() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	buffer := make([]byte, 1024)
+
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
 			return
 		}
-		fmt.Printf("Recebido: %s\n", string(buffer[:n]))
-		conn.Write([]byte("OK"))
+
+		mensagem := string(buffer[:n])
+		fmt.Printf("Recebido: %s\n", mensagem)
+
+		mu.Lock()
+		if mensagem == "Ponto de recarga disponível" {
+			// Armazena o ponto de recarga disponível
+			pontosDisponiveis[conn.RemoteAddr().String()] = true
+			conn.Write([]byte("Ponto registrado na nuvem"))
+		} else if mensagem == "Carro precisa recarga" {
+			// Encontra um ponto disponível e o atribui ao carro
+			for ponto, disponivel := range pontosDisponiveis {
+				if disponivel {
+					pontosDisponiveis[ponto] = false // O ponto agora está ocupado
+					conn.Write([]byte("Dirija-se ao ponto: " + ponto))
+					mu.Unlock()
+					return
+				}
+			}
+			conn.Write([]byte("Nenhum ponto disponível no momento"))
+		}
+		mu.Unlock()
 	}
 }
