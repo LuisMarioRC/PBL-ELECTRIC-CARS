@@ -4,27 +4,10 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"github.com/LuisMarioRC/PBL-ELECTRIC-CARS/cmd/models" 
 )
 
-var pontosDisponiveis = make(map[string]bool) // Armazena pontos de recarga disponíveis
-var mu sync.Mutex                             // Para evitar problemas de concorrência
-
-func main() {
-	listener, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		panic(err)
-	}
-	defer listener.Close()
-
-	fmt.Println("Servidor Nuvem iniciado na porta 8080")
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			continue
-		}
-		go handleConnection(conn)
-	}
-}
+var mu sync.Mutex
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -41,21 +24,38 @@ func handleConnection(conn net.Conn) {
 
 		mu.Lock()
 		if mensagem == "Ponto de recarga disponível" {
-			// Armazena o ponto de recarga disponível
-			pontosDisponiveis[conn.RemoteAddr().String()] = true
+			ponto := conn.RemoteAddr().String()
+			models.PontosDisponiveis[ponto] = true  // Usando o prefixo do pacote models
+			models.FilaEspera[ponto] = 0            // Resetando a fila quando um ponto fica disponível
 			conn.Write([]byte("Ponto registrado na nuvem"))
 		} else if mensagem == "Carro precisa recarga" {
-			// Encontra um ponto disponível e o atribui ao carro
-			for ponto, disponivel := range pontosDisponiveis {
-				if disponivel {
-					pontosDisponiveis[ponto] = false // O ponto agora está ocupado
-					conn.Write([]byte("Dirija-se ao ponto: " + ponto))
-					mu.Unlock()
-					return
-				}
+			destino, fila := models.Dijkstra(conn.RemoteAddr().String())  // Chamando Dijkstra com o prefixo 'models'
+			if destino != "" {
+				models.PontosDisponiveis[destino] = false  // Marca o ponto como não disponível
+				models.FilaEspera[destino]++               // Incrementa a fila de espera
+				conn.Write([]byte(fmt.Sprintf("Dirija-se ao ponto: %s | Carros na fila: %d", destino, fila)))
+			} else {
+				conn.Write([]byte("Nenhum ponto disponível no momento"))
 			}
-			conn.Write([]byte("Nenhum ponto disponível no momento"))
 		}
 		mu.Unlock()
+	}
+}
+
+func main() {
+	listener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		panic(err)
+	}
+	defer listener.Close()
+
+	fmt.Println("Servidor Nuvem iniciado na porta 8080")
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			continue
+		}
+		go handleConnection(conn)
 	}
 }
