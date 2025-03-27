@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/LuisMarioRC/PBL-ELECTRIC-CARS/cmd/models"
 	"net"
+	"strings"
 	"sync"
-	"github.com/LuisMarioRC/PBL-ELECTRIC-CARS/cmd/models" 
 )
 
 var mu sync.Mutex
@@ -23,19 +24,48 @@ func handleConnection(conn net.Conn) {
 		fmt.Printf("Recebido: %s\n", mensagem)
 
 		mu.Lock()
-		if mensagem == "Ponto de recarga disponível" {
-			ponto := conn.RemoteAddr().String()
-			models.PontosDisponiveis[ponto] = true  // Usando o prefixo do pacote models
-			models.FilaEspera[ponto] = 0            // Resetando a fila quando um ponto fica disponível
-			conn.Write([]byte("Ponto registrado na nuvem"))
-		} else if mensagem == "Carro precisa recarga" {
-			destino, fila := models.Dijkstra(conn.RemoteAddr().String())  // Chamando Dijkstra com o prefixo 'models'
-			if destino != "" {
-				models.PontosDisponiveis[destino] = false  // Marca o ponto como não disponível
-				models.FilaEspera[destino]++               // Incrementa a fila de espera
-				conn.Write([]byte(fmt.Sprintf("Dirija-se ao ponto: %s | Carros na fila: %d", destino, fila)))
+		if !strings.Contains(mensagem, "|") {
+			if mensagem == "Ponto de recarga disponível" {
+				ponto := conn.RemoteAddr().String()
+				models.PontosDisponiveis[ponto] = true
+				models.FilaEspera[ponto] = 0
+				conn.Write([]byte("Ponto registrado na nuvem"))
 			} else {
-				conn.Write([]byte("Nenhum ponto disponível no momento"))
+				conn.Write([]byte("Formato inválido da mensagem"))
+			}
+			mu.Unlock()
+			continue
+		}
+
+		parts := strings.Split(mensagem, "|")
+		if len(parts) < 2 {
+			conn.Write([]byte("Formato inválido da mensagem"))
+			mu.Unlock()
+			continue
+		}
+		comando := parts[0]
+		carroID := parts[1]
+
+		if comando == "Ponto de recarga disponível" {
+			ponto := conn.RemoteAddr().String()
+			models.PontosDisponiveis[ponto] = true
+			models.FilaEspera[ponto] = 0
+			conn.Write([]byte("Ponto registrado na nuvem"))
+		} else if comando == "Carro precisa recarga" {
+			if carroID == "" {
+				conn.Write([]byte("Formato inválido da mensagem: ID do carro está vazio"))
+				mu.Unlock()
+				continue
+			}
+
+			destino, fila := models.Dijkstra(conn.RemoteAddr().String())
+
+			if destino != "" {
+				models.PontosDisponiveis[destino] = false
+				models.FilaEspera[destino]++
+				conn.Write([]byte(fmt.Sprintf("Carro %s: Dirija-se ao ponto: %s | Carros na fila: %d", carroID, destino, fila)))
+			} else {
+				conn.Write([]byte(fmt.Sprintf("Carro %s: Nenhum ponto disponível", carroID)))
 			}
 		}
 		mu.Unlock()

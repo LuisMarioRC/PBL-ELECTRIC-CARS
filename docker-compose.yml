@@ -9,6 +9,11 @@ services:
       - "8080:8080"
     networks:
       - rede_recarga
+    container_name: nuvem-1
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
 
   ponto:
     build:
@@ -18,8 +23,13 @@ services:
       - nuvem
     networks:
       - rede_recarga
+    container_name: ponto-1
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
 
-  carro:
+  carro-1:
     build:
       context: .
       dockerfile: docker/Dockerfile.carro
@@ -27,6 +37,52 @@ services:
       - nuvem
     networks:
       - rede_recarga
+    container_name: carro-1
+    command: ["./carro", "1"]
+
+  carro-2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-2
+    command: ["./carro", "2"]
+
+  carro-3:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-3
+    command: ["./carro", "3"]
+
+  carro-4:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-4
+    command: ["./carro", "4"]
+
+  carro-5:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-5
+    command: ["./carro", "5"]
 
 networks:
   rede_recarga:
