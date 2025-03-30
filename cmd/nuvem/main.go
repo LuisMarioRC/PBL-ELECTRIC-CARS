@@ -97,6 +97,27 @@ func main() {
     // Inicializa o grafo com os pontos fixos e conexões
     models.InicializarGrafo()
 
+    // Cria os carros
+    carros := []*models.Carro{
+        {ID: "Carro1", Bateria: 100},
+        {ID: "Carro2", Bateria: 100},
+        {ID: "Carro3", Bateria: 100},
+        {ID: "Carro4", Bateria: 100},
+        {ID: "Carro5", Bateria: 100},
+        {ID: "Carro6", Bateria: 100},
+        {ID: "Carro7", Bateria: 100},
+    }
+
+    // Inicia a rotina de atualização da bateria para cada carro
+    var wg sync.WaitGroup
+    for _, carro := range carros {
+        wg.Add(1)
+        go func(c *models.Carro) {
+            defer wg.Done()
+            c.AtualizarBateria()
+        }(carro)
+    }
+    
     // Inicia o servidor
     listener, err := net.Listen("tcp", ":8080")
     if err != nil {
@@ -113,4 +134,6 @@ func main() {
         }
         go handleConnection(conn)
     }
+    
+    wg.Wait()
 }
