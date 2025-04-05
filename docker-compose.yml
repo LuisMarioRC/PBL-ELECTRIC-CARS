@@ -15,7 +15,7 @@ services:
         limits:
           memory: ${MEMORY_LIMIT:-512m}
 
-  ponto:
+  ponto-1:
     build:
       context: .
       dockerfile: docker/Dockerfile.ponto
@@ -24,6 +24,67 @@ services:
     networks:
       - rede_recarga
     container_name: ponto-1
+    command: ["./ponto", "Ponto-1"]
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+
+  ponto-2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: ponto-2
+    command: ["./ponto", "Ponto-2"]
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+
+  ponto-3:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: ponto-3
+    command: ["./ponto", "Ponto-3"]
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+
+  ponto-4:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: ponto-4
+    command: ["./ponto", "Ponto-4"]
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+
+  ponto-5:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: ponto-5
+    command: ["./ponto", "Ponto-5"]
     deploy:
       resources:
         limits:
