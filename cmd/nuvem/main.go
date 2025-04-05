@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"net"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/LuisMarioRC/PBL-ELECTRIC-CARS/cmd/models"
 )
@@ -17,126 +15,97 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	buffer := make([]byte, 1024)
 
-	for {
-		n, err := conn.Read(buffer)
-		if err != nil {
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return
+	}
+
+	mensagem := string(buffer[:n])
+	parts := strings.Split(mensagem, "|")
+	if len(parts) < 2 {
+		conn.Write([]byte("Formato inválido da mensagem"))
+		return
+	}
+
+	comando := parts[0]
+	id := parts[1]
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	switch comando {
+	case "Registrar ponto":
+		// Verifica se o ponto existe no grafo
+		if _, exists := models.GraphInstance.Nodes[id]; !exists {
+			conn.Write([]byte(fmt.Sprintf("Erro: Ponto %s não está registrado no grafo da nuvem.", id)))
 			return
 		}
 
-		mensagem := string(buffer[:n])
-		// fmt.Printf("Recebido: %s\n", mensagem)
+		// Verifica se o ponto já existe no sistema
+		if _, exists := models.PontosDisponiveis[id]; !exists {
+			models.PontosDisponiveis[id] = true
+			fmt.Printf("Ponto %s registrado com sucesso.\n", id)
+			conn.Write([]byte(fmt.Sprintf("Ponto %s registrado com sucesso e conectado ao sistema.", id)))
+		} else {
+			// Atualiza o status do ponto para disponível
+			models.PontosDisponiveis[id] = true
+			conn.Write([]byte(fmt.Sprintf("Ponto %s já estava registrado. Atualizado como disponível e conectado.", id)))
+		}
 
-		mu.Lock()
-		if strings.HasPrefix(mensagem, "Carro recarregado|") {
-			parts := strings.Split(mensagem, "|")
-			if len(parts) < 2 {
-				conn.Write([]byte("Formato inválido da mensagem"))
-				mu.Unlock()
-				continue
-			}
-			ponto := parts[1]
-			if _, exists := models.PontosDisponiveis[ponto]; exists {
-				models.PontosDisponiveis[ponto] = true
-				fmt.Printf("Carro terminou de recarregar no ponto %s\n", ponto)
+	case "Carro recarregado":
+		if _, exists := models.GraphInstance.Nodes[id]; !exists {
+			conn.Write([]byte(fmt.Sprintf("Erro: Ponto %s não está registrado no grafo da nuvem.", id)))
+			return
+		}
+		if _, exists := models.PontosDisponiveis[id]; exists {
+			models.PontosDisponiveis[id] = true
+			fmt.Printf("Carro terminou de recarregar no ponto %s\n", id)
 
-				if models.FilaEspera[ponto] > 0 {
-					fmt.Printf("Ponto %s liberado. Próximo carro na fila será atendido.\n", ponto)
-
-					for carroID, fila := range models.FilaEspera {
-						if fila > 0 {
-							models.FilaEspera[carroID]--
-							if models.FilaEspera[carroID] == 0 {
-								delete(models.FilaEspera, carroID)
-							}
-							models.PontosDisponiveis[ponto] = false
-							fmt.Printf("Notificando carro %s para usar o ponto %s.\n", carroID, ponto)
-							conn.Write([]byte(fmt.Sprintf("Carro %s: Dirija-se ao ponto %s", carroID, ponto)))
-							break
-						}
-					}
-				} else {
-					fmt.Printf("Ponto %s liberado. Nenhum carro na fila.\n", ponto)
-				}
+			// Verifica se há carros na fila para este ponto
+			if models.FilaEspera[id] > 0 {
+				models.FilaEspera[id]--
+				models.PontosDisponiveis[id] = false
+				fmt.Printf("Ponto %s: Próximo carro na fila será atendido.\n", id)
+				conn.Write([]byte(fmt.Sprintf("Ponto %s: Próximo carro pode ser atendido", id)))
 			} else {
-				conn.Write([]byte(fmt.Sprintf("Erro: Ponto %s não encontrado.", ponto)))
+				fmt.Printf("Ponto %s liberado. Nenhum carro na fila.\n", id)
+				conn.Write([]byte(fmt.Sprintf("Ponto %s liberado.", id)))
 			}
+		} else {
+			conn.Write([]byte(fmt.Sprintf("Erro: Ponto %s não encontrado.", id)))
 		}
 
-		parts := strings.Split(mensagem, "|")
-		if len(parts) < 2 {
-			conn.Write([]byte("Formato inválido da mensagem"))
-			mu.Unlock()
-			continue
-		}
-		comando := parts[0]
-		carroID := parts[1]
+	case "Carro precisa recarga":
+		pontoMaisProximo, _, distancia := models.Dijkstra("Ponto-1") // Localização atual poderia ser dinâmica
 
-		if comando == "Carro precisa recarga" {
-			if carroID == "" {
-				conn.Write([]byte("Formato inválido da mensagem: ID do carro está vazio"))
-				mu.Unlock()
-				continue
-			}
-
-			destino, _, distancia := models.Dijkstra("Ponto-1")
-
-			if destino != "" {
-				if models.PontosDisponiveis[destino] {
-					models.PontosDisponiveis[destino] = false
-					fmt.Printf("Carro %s iniciou recarga no ponto %s (distância: %.2f)\n", carroID, destino, distancia)
-					conn.Write([]byte(fmt.Sprintf("Carro %s: Dirija-se ao ponto: %s (distância: %.2f)", carroID, destino, distancia)))
-				} else {
-					models.FilaEspera[destino]++
-					posicaoFila := models.FilaEspera[destino]
-					conn.Write([]byte(fmt.Sprintf("Carro %s: Todos os pontos estão ocupados. Você está na fila do %s: posição %d", carroID, destino, posicaoFila)))
-				}
+		if pontoMaisProximo != "" {
+			if models.PontosDisponiveis[pontoMaisProximo] {
+				models.PontosDisponiveis[pontoMaisProximo] = false
+				fmt.Printf("Carro %s iniciou recarga no ponto %s (distância: %.2f)\n", id, pontoMaisProximo, distancia)
+				conn.Write([]byte(fmt.Sprintf("Carro %s: Dirija-se ao ponto: %s (distância: %.2f)", id, pontoMaisProximo, distancia)))
 			} else {
-				var menorFilaPonto string
-				menorDistancia := math.Inf(1)
-				for ponto, disponivel := range models.PontosDisponiveis {
-					if !disponivel {
-						_, _, distancia := models.Dijkstra(ponto)
-						if distancia < menorDistancia {
-							menorDistancia = distancia
-							menorFilaPonto = ponto
-						} else if distancia == menorDistancia && models.FilaEspera[ponto] < models.FilaEspera[menorFilaPonto] {
-							menorFilaPonto = ponto
-						}
-					}
-				}
-				models.FilaEspera[menorFilaPonto]++
-				posicaoFila := models.FilaEspera[menorFilaPonto]
-				conn.Write([]byte(fmt.Sprintf("Carro %s: Nenhum ponto disponível. Você está na fila do %s: posição %d", carroID, menorFilaPonto, posicaoFila)))
+				// Adiciona o carro à fila do ponto mais próximo
+				models.FilaEspera[pontoMaisProximo]++
+				posicaoFila := models.FilaEspera[pontoMaisProximo]
+				fmt.Printf("Carro %s adicionado à fila do ponto %s. Posição na fila: %d\n", id, pontoMaisProximo, posicaoFila)
+				conn.Write([]byte(fmt.Sprintf("Carro %s: Ponto ocupado. Você está na fila do %s: posição %d", id, pontoMaisProximo, posicaoFila)))
 			}
+		} else {
+			// Caso nenhum ponto esteja disponível ou no grafo
+			fmt.Printf("Carro %s: Nenhum ponto disponível no momento.\n", id)
+			conn.Write([]byte(fmt.Sprintf("Carro %s: Nenhum ponto disponível no momento.", id)))
 		}
-		mu.Unlock()
 
-		time.Sleep(2 * time.Second)
+	default:
+		conn.Write([]byte("Comando desconhecido"))
 	}
 }
 
 func main() {
+	// Inicializa o grafo com os pontos e suas conexões
 	models.InicializarGrafo()
 
-	carros := []*models.Carro{
-		{ID: "Carro1", Bateria: 100},
-		{ID: "Carro2", Bateria: 100},
-		{ID: "Carro3", Bateria: 100},
-		{ID: "Carro4", Bateria: 100},
-		{ID: "Carro5", Bateria: 100},
-		{ID: "Carro6", Bateria: 100},
-		{ID: "Carro7", Bateria: 100},
-	}
-
-	var wg sync.WaitGroup
-	for _, carro := range carros {
-		wg.Add(1)
-		go func(c *models.Carro) {
-			defer wg.Done()
-			c.AtualizarBateria()
-		}(carro)
-	}
-
+	// Inicia o servidor na porta 8080
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		panic(err)
@@ -144,6 +113,7 @@ func main() {
 	defer listener.Close()
 
 	fmt.Println("Servidor Nuvem iniciado na porta 8080")
+	fmt.Println("Aguardando conexões dos pontos de recarga...")
 
 	for {
 		conn, err := listener.Accept()
@@ -152,6 +122,4 @@ func main() {
 		}
 		go handleConnection(conn)
 	}
-
-	wg.Wait()
 }

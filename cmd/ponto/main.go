@@ -2,8 +2,10 @@ package main
 
 import (
     "fmt"
+    "log"
     "net"
     "os"
+    "strings"
     "time"
 )
 
@@ -14,38 +16,55 @@ func main() {
     }
 
     pontoID := os.Args[1]
+    if pontoID == "0" || pontoID == "" {
+        log.Println("❌ ID do ponto inválido")
+        return
+    }
+
+    fmt.Printf("🚩 Iniciando ponto %s...\n", pontoID)
+
+    registrado := false // Flag para verificar se o ponto já foi registrado
 
     for {
-        conn, err := net.Dial("tcp", "nuvem:8080")
-        if err != nil {
-            fmt.Println("Erro ao conectar na nuvem:", err)
-            time.Sleep(10 * time.Second) // Aguarda antes de tentar novamente
-            continue
-        }
+        if !registrado {
+            conn, err := net.Dial("tcp", "nuvem:8080")
+            if err != nil {
+                fmt.Printf("⚠️  [%s] Falha ao conectar na nuvem: %v\n", pontoID, err)
+                time.Sleep(10 * time.Second)
+                continue
+            }
 
-        // Envia mensagem no formato esperado pelo servidor
-        message := fmt.Sprintf("Ponto de recarga disponível|%s", pontoID)
-        _, err = conn.Write([]byte(message))
-        if err != nil {
-            fmt.Println("Erro ao enviar mensagem:", err)
+            message := fmt.Sprintf("Registrar ponto|%s", pontoID)
+            _, err = conn.Write([]byte(message))
+            if err != nil {
+                fmt.Printf("⚠️  [%s] Erro ao enviar mensagem: %v\n", pontoID, err)
+                conn.Close()
+                time.Sleep(10 * time.Second)
+                continue
+            }
+
+            buffer := make([]byte, 1024)
+            n, err := conn.Read(buffer)
+            if err != nil {
+                fmt.Printf("⚠️  [%s] Erro ao ler resposta da nuvem: %v\n", pontoID, err)
+                conn.Close()
+                time.Sleep(10 * time.Second)
+                continue
+            }
+
+            resposta := string(buffer[:n])
+            if strings.Contains(resposta, "registrado com sucesso") || strings.Contains(resposta, "já estava registrado") {
+                fmt.Printf("✅ [%s] Registrado com sucesso\n", pontoID)
+                registrado = true // Marca o ponto como registrado
+            } else {
+                fmt.Printf("❌ [%s] Falha no registro: %s\n", pontoID, resposta)
+            }
+
             conn.Close()
-            time.Sleep(10 * time.Second) // Aguarda antes de tentar novamente
-            continue
+        } else {
+            // Após o registro, o ponto pode realizar outras tarefas, como monitoramento
+            fmt.Printf("ℹ️  [%s] Ponto já registrado. Monitorando...\n", pontoID)
+            time.Sleep(30 * time.Second) // Intervalo maior para evitar sobrecarga
         }
-
-        buffer := make([]byte, 1024)
-        n, err := conn.Read(buffer)
-        if err != nil {
-            fmt.Println("Erro ao ler resposta da nuvem:", err)
-            conn.Close()
-            time.Sleep(10 * time.Second) // Aguarda antes de tentar novamente
-            continue
-        }
-
-        fmt.Println("Resposta da nuvem:", string(buffer[:n]))
-        conn.Close()
-
-        // Aguarda 10 segundos antes de enviar a próxima atualização
-        time.Sleep(10 * time.Second)
     }
 }
