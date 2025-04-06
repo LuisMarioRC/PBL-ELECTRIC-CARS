@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"time"
+
 )
 
 type Carro struct {
@@ -64,18 +65,24 @@ func (c *Carro) SolicitarRecarga() {
     fmt.Printf("Carro %s: Resposta da nuvem: %s\n", c.ID, resposta)
 
     if strings.Contains(resposta, "Dirija-se ao ponto") {
+
         tempoRecarga := rand.Intn(10) + 10 // Tempo de recarga entre 10 e 20 segundos
         fmt.Printf("Carro %s está recarregando por %d segundos...\n", c.ID, tempoRecarga)
         time.Sleep(time.Duration(tempoRecarga) * time.Second)
 
-        // Envia mensagem para a nuvem indicando que a recarga foi concluída
-        message := fmt.Sprintf("Carro recarregado|%s", c.ID)
-        conn.Write([]byte(message))
-        fmt.Printf("Carro %s terminou a recarga\n", c.ID)
-
-        // Atualiza a bateria para 100%
         c.Bateria = 100
+        fmt.Printf("Carro %s terminou a recarga, e ficou com %.2f%% de carga\n", c.ID, c.Bateria)
+
+        message := fmt.Sprintf("Carro recarregado|%s", c.ID)
+        _, err = conn.Write([]byte(message))
+        if err != nil {
+            fmt.Printf("Carro %s: Erro ao enviar mensagem de recarregado: %s\n", c.ID, err.Error())
+            return
+        }
+
         CarrosEstado[c.ID] = c // Atualiza o estado no mapa
+
+        PontosDisponiveis[c.Localizacao] = true // Atualiza o ponto de recarga como disponível
     }
 }
 

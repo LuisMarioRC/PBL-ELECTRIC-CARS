@@ -33,6 +33,8 @@ func handleConnection(conn net.Conn) {
 	mu.Lock()
 	defer mu.Unlock()
 
+	fmt.Printf("🤖 Recebido comando: %s, ID: %s\n", comando, id)
+
 	switch comando {
 	case "Registrar ponto":
 		// Verifica se o ponto existe no grafo
