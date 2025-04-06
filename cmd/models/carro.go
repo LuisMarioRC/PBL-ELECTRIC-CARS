@@ -65,22 +65,30 @@ func (c *Carro) SolicitarRecarga() {
     fmt.Printf("Carro %s: Resposta da nuvem: %s\n", c.ID, resposta)
 
     if strings.Contains(resposta, "Dirija-se ao ponto") {
-
+        // Extrai o ID do ponto da resposta
+        // Formato: "Carro X: Dirija-se ao ponto: Y (distância: Z.ZZ)"
+        partes := strings.Split(resposta, "ponto:")
+        if len(partes) > 1 {
+            idComDistancia := strings.TrimSpace(partes[1])
+            // Separar o ID da distância
+            idParte := strings.Split(idComDistancia, "(")[0]
+            // Remover espaços extras
+            c.Localizacao = strings.TrimSpace(idParte)
+        }
+    
         tempoRecarga := rand.Intn(10) + 10 // Tempo de recarga entre 10 e 20 segundos
-        fmt.Printf("Carro %s está recarregando por %d segundos...\n", c.ID, tempoRecarga)
+        fmt.Printf("Carro %s está recarregando por %d segundos no ponto %s...\n", c.ID, tempoRecarga, c.Localizacao)
         time.Sleep(time.Duration(tempoRecarga) * time.Second)
-
+    
         c.Bateria = 100
-        fmt.Printf("Carro %s terminou a recarga, e ficou com %.2f%% de carga\n", c.ID, c.Bateria)
-
+        fmt.Printf("Carro %s terminou a recarga no ponto %s, e ficou com %.2f%% de carga\n", c.ID, c.Localizacao, c.Bateria)
+    
         message := fmt.Sprintf("Carro recarregado|%s\n", c.Localizacao)
-        
         _, err = conn.Write([]byte(message))
         if err != nil {
             fmt.Printf("Carro %s: Erro ao enviar mensagem de recarregado: %s\n", c.ID, err.Error())
             return
         }
-
     }
 }
 
