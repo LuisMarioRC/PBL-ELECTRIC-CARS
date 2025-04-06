@@ -48,7 +48,7 @@ func main() {
 			fmt.Printf("Carro %s com bateria baixa (%.2f%%). Solicitando recarga...\n", carroID, carro.Bateria)
 
 			// Envia mensagem para a nuvem solicitando recarga
-			message := fmt.Sprintf("Carro precisa recarga|%s", carroID)
+			message := fmt.Sprintf("Carro precisa recarga|%s\n", carroID)
 			_, err := conn.Write([]byte(message))
 			if err != nil {
 				fmt.Println("Erro ao enviar mensagem para a nuvem:", err)
@@ -89,7 +89,7 @@ func recarregar(carroID string, conn net.Conn) {
 	time.Sleep(time.Duration(tempoRecarga) * time.Second)
 
 	// Envia mensagem para a nuvem indicando que a recarga foi concluída
-	message := fmt.Sprintf("Carro recarregado|%s", carroID)
+	message := fmt.Sprintf("Carro recarregado|%s\n", carroID)
 	conn.Write([]byte(message))
 	fmt.Printf("Carro %s terminou a recarga\n", carroID)
 }

@@ -83,26 +83,26 @@ func Dijkstra(start string) (string, int, float64) {
 
 func InicializarGrafo() {
     // Adiciona as conexões entre os pontos com pesos (distâncias)
-    GraphInstance.AddEdge("Ponto-1", "Ponto-2", 10)
-    GraphInstance.AddEdge("Ponto-1", "Ponto-3", 15)
-    GraphInstance.AddEdge("Ponto-2", "Ponto-4", 12)
-    GraphInstance.AddEdge("Ponto-3", "Ponto-4", 10)
-    GraphInstance.AddEdge("Ponto-4", "Ponto-5", 5)
-    GraphInstance.AddEdge("Ponto-2", "Ponto-5", 20)
+    GraphInstance.AddEdge("1", "2", 10)
+    GraphInstance.AddEdge("1", "3", 15)
+    GraphInstance.AddEdge("2", "4", 12)
+    GraphInstance.AddEdge("3", "4", 10)
+    GraphInstance.AddEdge("4", "5", 5)
+    GraphInstance.AddEdge("2", "5", 20)
 
     // Inicializa os pontos como disponíveis
-    PontosDisponiveis["Ponto-1"] = true
-    PontosDisponiveis["Ponto-2"] = true
-    PontosDisponiveis["Ponto-3"] = true
-    PontosDisponiveis["Ponto-4"] = true
-    PontosDisponiveis["Ponto-5"] = true
+    PontosDisponiveis["1"] = true
+    PontosDisponiveis["2"] = true
+    PontosDisponiveis["3"] = true
+    PontosDisponiveis["4"] = true
+    PontosDisponiveis["5"] = true
 
     // Inicializa as filas de espera para cada ponto
-    FilaEspera["Ponto-1"] = 0
-    FilaEspera["Ponto-2"] = 0
-    FilaEspera["Ponto-3"] = 0
-    FilaEspera["Ponto-4"] = 0
-    FilaEspera["Ponto-5"] = 0
+    FilaEspera["1"] = 0
+    FilaEspera["2"] = 0
+    FilaEspera["3"] = 0
+    FilaEspera["4"] = 0
+    FilaEspera["5"] = 0
 
     fmt.Println("Grafo inicializado com os seguintes pontos e conexões:")
     for from, neighbors := range GraphInstance.Nodes {

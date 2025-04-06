@@ -34,7 +34,7 @@ func main() {
                 continue
             }
 
-            message := fmt.Sprintf("Registrar ponto|%s", pontoID)
+            message := fmt.Sprintf("Registrar ponto|%s\n", pontoID)
             _, err = conn.Write([]byte(message))
             if err != nil {
                 fmt.Printf("⚠️  [%s] Erro ao enviar mensagem: %v\n", pontoID, err)

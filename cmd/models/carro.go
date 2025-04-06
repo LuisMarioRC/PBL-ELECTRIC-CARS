@@ -47,7 +47,7 @@ func (c *Carro) SolicitarRecarga() {
     }
     defer conn.Close()
 
-    message := fmt.Sprintf("Carro precisa recarga|%s", c.ID)
+    message := fmt.Sprintf("Carro precisa recarga|%s\n", c.ID)
     _, err = conn.Write([]byte(message))
     if err != nil {
         fmt.Printf("Carro %s: Erro ao enviar solicitação de recarga: %s\n", c.ID, err.Error())
@@ -73,16 +73,14 @@ func (c *Carro) SolicitarRecarga() {
         c.Bateria = 100
         fmt.Printf("Carro %s terminou a recarga, e ficou com %.2f%% de carga\n", c.ID, c.Bateria)
 
-        message := fmt.Sprintf("Carro recarregado|%s", c.ID)
+        message := fmt.Sprintf("Carro recarregado|%s\n", c.Localizacao)
+        
         _, err = conn.Write([]byte(message))
         if err != nil {
             fmt.Printf("Carro %s: Erro ao enviar mensagem de recarregado: %s\n", c.ID, err.Error())
             return
         }
 
-        CarrosEstado[c.ID] = c // Atualiza o estado no mapa
-
-        PontosDisponiveis[c.Localizacao] = true // Atualiza o ponto de recarga como disponível
     }
 }
 
@@ -120,4 +118,14 @@ func (c *Carro) CalcularCustoRecarga() float64 {
     bateriaFaltante := 100 - c.Bateria
     custo := bateriaFaltante * PrecoPorUnidade
     return custo
+}
+
+func LiberarPonto(localizacao string) {
+    Mutex.Lock()
+    defer Mutex.Unlock()
+
+    if _, existe := PontosDisponiveis[localizacao]; existe {
+        PontosDisponiveis[localizacao] = true
+        fmt.Printf("Ponto %s liberado\n", localizacao)
+    }
 }
