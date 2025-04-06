@@ -24,7 +24,7 @@ services:
     networks:
       - rede_recarga
     container_name: ponto-1
-    command: ["./ponto", "Ponto-1"]
+    command: ["./ponto", "1"]
     deploy:
       resources:
         limits:
@@ -39,7 +39,7 @@ services:
     networks:
       - rede_recarga
     container_name: ponto-2
-    command: ["./ponto", "Ponto-2"]
+    command: ["./ponto", "2"]
     deploy:
       resources:
         limits:
@@ -54,7 +54,7 @@ services:
     networks:
       - rede_recarga
     container_name: ponto-3
-    command: ["./ponto", "Ponto-3"]
+    command: ["./ponto", "3"]
     deploy:
       resources:
         limits:
@@ -69,7 +69,7 @@ services:
     networks:
       - rede_recarga
     container_name: ponto-4
-    command: ["./ponto", "Ponto-4"]
+    command: ["./ponto", "4"]
     deploy:
       resources:
         limits:
@@ -84,7 +84,7 @@ services:
     networks:
       - rede_recarga
     container_name: ponto-5
-    command: ["./ponto", "Ponto-5"]
+    command: ["./ponto", "5"]
     deploy:
       resources:
         limits:
