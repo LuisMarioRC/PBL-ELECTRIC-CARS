@@ -16,7 +16,7 @@ type Graph struct {
 var (
 	GraphInstance = Graph{Nodes: make(map[string]map[string]float64)}
 	PontosDisponiveis = make(map[string]bool)
-	FilaEspera        = make(map[string]int)
+    FilaEspera        = make(map[string][]string)
 	Mutex             sync.Mutex
 )
 
@@ -35,74 +35,79 @@ func (g *Graph) AddEdge(from, to string, weight float64) {
 }
 
 // dijkstra encontra o ponto de recarga disponível mais próximo
-func Dijkstra(start string) (string, int, float64) {
+func Dijkstra(start string) (string, []string, float64) {
     dist := make(map[string]float64)
     prev := make(map[string]string)
     unvisited := make(map[string]bool)
 
+    // Inicializa as distâncias e os nós não visitados
     for node := range GraphInstance.Nodes {
-        dist[node] = math.Inf(1)
-        unvisited[node] = true
+        dist[node] = math.Inf(1) // Define todas as distâncias como infinito
+        unvisited[node] = true   // Marca todos os nós como não visitados
     }
-    dist[start] = 0
+    dist[start] = 0 // A distância para o nó inicial é 0
 
     for len(unvisited) > 0 {
-        minNode := ""
+        // Encontra o nó não visitado com a menor distância
+        var current string
         minDist := math.Inf(1)
         for node := range unvisited {
             if dist[node] < minDist {
                 minDist = dist[node]
-                minNode = node
+                current = node
             }
         }
-        if minNode == "" {
-            break
-        }
-        delete(unvisited, minNode)
 
-        for neighbor, weight := range GraphInstance.Nodes[minNode] {
-            if !unvisited[neighbor] {
-                continue
-            }
-            alt := dist[minNode] + weight
-            if alt < dist[neighbor] {
-                dist[neighbor] = alt
-                prev[neighbor] = minNode
+        // Remove o nó atual dos não visitados
+        delete(unvisited, current)
+
+        // Atualiza as distâncias para os vizinhos do nó atual
+        for neighbor, weight := range GraphInstance.Nodes[current] {
+            if _, ok := unvisited[neighbor]; ok {
+                alt := dist[current] + weight
+                if alt < dist[neighbor] {
+                    dist[neighbor] = alt
+                    prev[neighbor] = current
+                }
             }
         }
     }
+
+    // Encontra o ponto disponível mais próximo
+    minDist := math.Inf(1)
+    pontoMaisProximo := ""
+    var filaMaisProxima []string
 
     for ponto, disponivel := range PontosDisponiveis {
-        if disponivel {
-            fmt.Printf("Ponto disponível mais próximo: %s (distância: %.2f)\n", ponto, dist[ponto])
-            return ponto, FilaEspera[ponto], dist[ponto]
+        if disponivel && dist[ponto] < minDist {
+            minDist = dist[ponto]
+            pontoMaisProximo = ponto
+            filaMaisProxima = FilaEspera[ponto]
         }
     }
-    return "", 0, 0
+
+    if pontoMaisProximo != "" {
+        fmt.Printf("Ponto disponível mais próximo: %s (distância: %.2f)\n", pontoMaisProximo, minDist)
+        return pontoMaisProximo, filaMaisProxima, minDist
+    }
+    return "", nil, 0 // Caso nenhum ponto esteja disponível
 }
 
 func InicializarGrafo() {
     // Adiciona as conexões entre os pontos com pesos (distâncias)
     GraphInstance.AddEdge("1", "2", 10)
-    GraphInstance.AddEdge("1", "3", 15)
-    GraphInstance.AddEdge("2", "4", 12)
-    GraphInstance.AddEdge("3", "4", 10)
-    GraphInstance.AddEdge("4", "5", 5)
-    GraphInstance.AddEdge("2", "5", 20)
+    GraphInstance.AddEdge("2", "3", 20)
+    GraphInstance.AddEdge("1", "3", 30)
+    GraphInstance.AddEdge("3", "1", 40)
 
     // Inicializa os pontos como disponíveis
     PontosDisponiveis["1"] = true
     PontosDisponiveis["2"] = true
-    PontosDisponiveis["3"] = true
-    PontosDisponiveis["4"] = true
-    PontosDisponiveis["5"] = true
+
 
     // Inicializa as filas de espera para cada ponto
-    FilaEspera["1"] = 0
-    FilaEspera["2"] = 0
-    FilaEspera["3"] = 0
-    FilaEspera["4"] = 0
-    FilaEspera["5"] = 0
+    FilaEspera["1"] = []string{}
+    FilaEspera["2"] = []string{}
 
     fmt.Println("Grafo inicializado com os seguintes pontos e conexões:")
     for from, neighbors := range GraphInstance.Nodes {

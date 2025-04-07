@@ -26,7 +26,7 @@ func main() {
 	fmt.Printf("Carro %s iniciado\n", carroID)
 
 	// Conecta à nuvem na porta 8080
-	conn, err := net.Dial("tcp", "nuvem:8080") // Alterado de "localhost:8080" para "nuvem:8080"
+	conn, err := net.Dial("tcp", "nuvem:8080") // Alterado de "nuvem:8080" para "nuvem:8080"
 	if err != nil {
 		log.Fatalf("Erro ao conectar à nuvem: %v", err)
 	}
@@ -42,39 +42,55 @@ func main() {
 	for {
 		// Simula o consumo de bateria
 		carro.AtualizarBateria()
-
+	
 		// Se a bateria estiver baixa, solicita recarga
 		if carro.Bateria <= 20 {
 			fmt.Printf("Carro %s com bateria baixa (%.2f%%). Solicitando recarga...\n", carroID, carro.Bateria)
-
+	
+			// Verifica se a conexão está ativa
+			if conn == nil {
+				fmt.Println("Conexão perdida. Tentando reconectar...")
+				conn, err = net.Dial("tcp", "nuvem:8080")
+				if err != nil {
+					fmt.Println("Erro ao reconectar à nuvem:", err)
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				fmt.Println("Reconexão bem-sucedida.")
+			}
+	
 			// Envia mensagem para a nuvem solicitando recarga
 			message := fmt.Sprintf("Carro precisa recarga|%s\n", carroID)
 			_, err := conn.Write([]byte(message))
 			if err != nil {
 				fmt.Println("Erro ao enviar mensagem para a nuvem:", err)
-				time.Sleep(10 * time.Second) // Aguarda antes de tentar novamente
+				conn.Close()
+				conn = nil // Marca a conexão como perdida
+				time.Sleep(10 * time.Second)
 				continue
 			}
-
+	
 			// Aguarda resposta da nuvem
 			buffer := make([]byte, 1024)
 			n, err := conn.Read(buffer)
 			if err != nil {
 				fmt.Println("Erro ao ler resposta da nuvem:", err)
-				time.Sleep(10 * time.Second) // Aguarda antes de tentar novamente
+				conn.Close()
+				conn = nil // Marca a conexão como perdida
+				time.Sleep(10 * time.Second)
 				continue
 			}
-
+	
 			// Processa a resposta da nuvem
 			resposta := string(buffer[:n])
 			fmt.Printf("Resposta da nuvem para o carro %s: %s\n", carroID, resposta)
-
+	
 			// Se a resposta indicar que o carro pode recarregar, simula o processo de recarga
 			if resposta == fmt.Sprintf("Carro %s: Dirija-se ao ponto", carroID) {
 				recarregar(carroID, conn)
 			}
 		}
-
+	
 		time.Sleep(10 * time.Second) // Aguarda antes de verificar novamente
 	}
 }

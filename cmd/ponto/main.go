@@ -63,7 +63,7 @@ func main() {
             conn.Close()
         } else {
             // Após o registro, o ponto pode realizar outras tarefas, como monitoramento
-            fmt.Printf("ℹ️  [%s] Ponto já registrado. Monitorando...\n", pontoID)
+            //fmt.Printf("ℹ️  [%s] Ponto já registrado. Monitorando...\n", pontoID)
             time.Sleep(30 * time.Second) // Intervalo maior para evitar sobrecarga
         }
     }
