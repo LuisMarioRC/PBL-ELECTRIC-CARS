@@ -53,7 +53,8 @@ func main() {
             }
 
             resposta := string(buffer[:n])
-            if strings.Contains(resposta, "registrado com sucesso") || strings.Contains(resposta, "já estava registrado") {
+            // Verifica a resposta real do servidor
+            if strings.Contains(resposta, "registrado e conectado") {
                 fmt.Printf("✅ [%s] Registrado com sucesso\n", pontoID)
                 registrado = true // Marca o ponto como registrado
             } else {

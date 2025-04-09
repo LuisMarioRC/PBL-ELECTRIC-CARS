@@ -6,21 +6,89 @@ import (
 	"sync"
 )
 
-// Graph representa um grafo com pesos nas arestas
+type FilaRecarga struct {
+	mu     sync.Mutex
+	Carros []string
+	notify chan struct{}
+}
+
+func (f *FilaRecarga) Adicionar(carroID string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Carros = append(f.Carros, carroID)
+	return len(f.Carros)
+}
+
+func (f *FilaRecarga) Remover() (string, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.Carros) == 0 {
+		return "", false
+	}
+	carroID := f.Carros[0]
+	f.Carros = f.Carros[1:]
+	return carroID, true
+}
+
+func (f *FilaRecarga) Tamanho() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.Carros)
+}
+
+type PontoManager struct {
+	mu                sync.Mutex
+	pontosDisponiveis map[string]bool
+	Filas             map[string]*FilaRecarga  // Alterado de filas para Filas (tornando público)
+}
+
+func (pm *PontoManager) SetDisponivel(id string, disponivel bool) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.pontosDisponiveis[id] = disponivel
+	if disponivel {
+		if fila, ok := pm.Filas[id]; ok {  // Alterado de pm.filas para pm.Filas
+			select {
+			case fila.notify <- struct{}{}:
+			default:
+			}
+		}
+	}
+}
+
+func (pm *PontoManager) GetDisponivel(id string) (bool, bool) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	disponivel, exists := pm.pontosDisponiveis[id]
+	return disponivel, exists
+}
+
+func (pm *PontoManager) Init() {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.pontosDisponiveis = make(map[string]bool)
+	pm.Filas = make(map[string]*FilaRecarga)  // Alterado de pm.filas para pm.Filas
+	for id := range GraphInstance.Nodes {
+		pm.Filas[id] = &FilaRecarga{  // Alterado de pm.filas para pm.Filas
+			notify: make(chan struct{}, 1),
+		}
+	}
+}
+
 type Graph struct {
-	Nodes map[string]map[string]float64 // Lista de adjacência
+	Nodes map[string]map[string]float64
 	mu    sync.Mutex
 }
 
-// Criando o grafo globalmente
 var (
-	GraphInstance = Graph{Nodes: make(map[string]map[string]float64)}
-	PontosDisponiveis = make(map[string]bool)
-    FilaEspera        = make(map[string][]string)
-	Mutex             sync.Mutex
+	GraphInstance        = Graph{Nodes: make(map[string]map[string]float64)}
+	PontoManagerInstance = &PontoManager{
+		pontosDisponiveis: make(map[string]bool),
+		Filas:             make(map[string]*FilaRecarga),  // Alterado de filas para Filas
+	}
+	Mutex sync.Mutex
 )
 
-// AddEdge adiciona uma aresta ao grafo
 func (g *Graph) AddEdge(from, to string, weight float64) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -31,24 +99,26 @@ func (g *Graph) AddEdge(from, to string, weight float64) {
 	if g.Nodes[to] == nil {
 		g.Nodes[to] = make(map[string]float64)
 	}
-	g.Nodes[to][from] = weight // Estradas bidirecionais
+	g.Nodes[to][from] = weight
 }
 
-// dijkstra encontra o ponto de recarga disponível mais próximo
 func Dijkstra(start string) (string, []string, float64) {
+    Mutex.Lock()
+    defer Mutex.Unlock()
+
     dist := make(map[string]float64)
     prev := make(map[string]string)
     unvisited := make(map[string]bool)
 
     // Inicializa as distâncias e os nós não visitados
     for node := range GraphInstance.Nodes {
-        dist[node] = math.Inf(1) // Define todas as distâncias como infinito
-        unvisited[node] = true   // Marca todos os nós como não visitados
+        dist[node] = math.Inf(1)
+        unvisited[node] = true
     }
-    dist[start] = 0 // A distância para o nó inicial é 0
+    dist[start] = 0
 
+    // Algoritmo de Dijkstra para calcular as menores distâncias
     for len(unvisited) > 0 {
-        // Encontra o nó não visitado com a menor distância
         var current string
         minDist := math.Inf(1)
         for node := range unvisited {
@@ -57,11 +127,8 @@ func Dijkstra(start string) (string, []string, float64) {
                 current = node
             }
         }
-
-        // Remove o nó atual dos não visitados
         delete(unvisited, current)
 
-        // Atualiza as distâncias para os vizinhos do nó atual
         for neighbor, weight := range GraphInstance.Nodes[current] {
             if _, ok := unvisited[neighbor]; ok {
                 alt := dist[current] + weight
@@ -73,46 +140,65 @@ func Dijkstra(start string) (string, []string, float64) {
         }
     }
 
-    // Encontra o ponto disponível mais próximo
-    minDist := math.Inf(1)
-    pontoMaisProximo := ""
-    var filaMaisProxima []string
+	minDistDisponivel := math.Inf(1)
+minDistOcupado := math.Inf(1)
+pontoMaisProximoDisponivel := ""
+pontoMaisProximoOcupado := ""
+var filaMaisProxima []string
 
-    for ponto, disponivel := range PontosDisponiveis {
-        if disponivel && dist[ponto] < minDist {
-            minDist = dist[ponto]
-            pontoMaisProximo = ponto
-            filaMaisProxima = FilaEspera[ponto]
+for ponto := range GraphInstance.Nodes {
+    disponivel, exists := PontoManagerInstance.GetDisponivel(ponto)
+    if !exists {
+        continue
+    }
+
+    if disponivel {
+        if dist[ponto] < minDistDisponivel {
+            minDistDisponivel = dist[ponto]
+            pontoMaisProximoDisponivel = ponto
+        }
+    } else {
+        filaTamanho := PontoManagerInstance.Filas[ponto].Tamanho()
+        if pontoMaisProximoOcupado == "" || filaTamanho < len(filaMaisProxima) || (filaTamanho == len(filaMaisProxima) && dist[ponto] < minDistOcupado) {
+            minDistOcupado = dist[ponto]
+            pontoMaisProximoOcupado = ponto
+            filaMaisProxima = PontoManagerInstance.Filas[ponto].Carros
         }
     }
+}
 
-    if pontoMaisProximo != "" {
-        fmt.Printf("Ponto disponível mais próximo: %s (distância: %.2f)\n", pontoMaisProximo, minDist)
-        return pontoMaisProximo, filaMaisProxima, minDist
-    }
-    return "", nil, 0 // Caso nenhum ponto esteja disponível
+if pontoMaisProximoDisponivel != "" {
+    return pontoMaisProximoDisponivel, nil, minDistDisponivel
+}
+if pontoMaisProximoOcupado != "" {
+    return pontoMaisProximoOcupado, filaMaisProxima, minDistOcupado
+}
+
+return "", nil, 0
 }
 
 func InicializarGrafo() {
-    // Adiciona as conexões entre os pontos com pesos (distâncias)
-    GraphInstance.AddEdge("1", "2", 10)
-    GraphInstance.AddEdge("2", "3", 20)
-    GraphInstance.AddEdge("1", "3", 30)
-    GraphInstance.AddEdge("3", "1", 40)
+	GraphInstance.AddEdge("1", "2", 10)
+	GraphInstance.AddEdge("2", "1", 20)
 
-    // Inicializa os pontos como disponíveis
-    PontosDisponiveis["1"] = true
-    PontosDisponiveis["2"] = true
+	PontoManagerInstance.Init()
+	PontoManagerInstance.SetDisponivel("1", true)
+	PontoManagerInstance.SetDisponivel("2", true)
 
+	fmt.Println("Grafo inicializado com os pontos e conexões:")
+	for from, neighbors := range GraphInstance.Nodes {
+		for to, weight := range neighbors {
+			fmt.Printf("- %s -> %s (peso: %.2f)\n", from, to, weight)
+		}
+	}
+}
 
-    // Inicializa as filas de espera para cada ponto
-    FilaEspera["1"] = []string{}
-    FilaEspera["2"] = []string{}
+func LiberarPonto(localizacao string) {
+	PontoManagerInstance.SetDisponivel(localizacao, true)
+	fmt.Printf("📢 Ponto %s liberado\n", localizacao)
+}
 
-    fmt.Println("Grafo inicializado com os seguintes pontos e conexões:")
-    for from, neighbors := range GraphInstance.Nodes {
-        for to, weight := range neighbors {
-            fmt.Printf("- %s -> %s (peso: %.2f)\n", from, to, weight)
-        }
-    }
+func FecharPonto(localizacao string) {
+	PontoManagerInstance.SetDisponivel(localizacao, false)
+	fmt.Printf("🔒 Ponto %s ocupado\n", localizacao)
 }
