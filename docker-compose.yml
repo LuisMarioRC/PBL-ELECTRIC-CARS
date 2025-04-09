@@ -101,28 +101,6 @@ services:
     container_name: carro-5
     command: ["./carro", "5"]
 
-  carro-6:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.carro
-    depends_on:
-      - nuvem
-    networks:
-      - rede_recarga
-    container_name: carro-6
-    command: ["./carro", "6"]
-
-  carro-7:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.carro
-    depends_on:
-      - nuvem
-    networks:
-      - rede_recarga
-    container_name: carro-7
-    command: ["./carro", "7"]
-
 networks:
   rede_recarga:
     driver: bridge
