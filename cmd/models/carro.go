@@ -31,7 +31,7 @@ func (c *Carro) Rodar(distancia float64) error {
 
 	consumo := distancia * ConsumoPorKm
 	if consumo > c.Bateria {
-		return errors.New("bateria insuficiente")
+		return errors.New("Bateria insuficiente para rodar distância solicitada")
 	}
 
 	c.Bateria -= consumo
