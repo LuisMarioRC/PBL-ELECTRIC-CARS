@@ -14,6 +14,8 @@ services:
       resources:
         limits:
           memory: ${MEMORY_LIMIT:-512m}
+    volumes:
+      - dados_recarga:/app/json
 
   ponto-1:
     build:
@@ -45,7 +47,6 @@ services:
         limits:
           memory: ${MEMORY_LIMIT:-512m}
 
-
   carro-1:
     build:
       context: .
@@ -56,6 +57,8 @@ services:
       - rede_recarga
     container_name: carro-1
     command: ["./carro", "1"]
+    volumes:
+      - dados_recarga:/app/json
 
   carro-2:
     build:
@@ -67,6 +70,8 @@ services:
       - rede_recarga
     container_name: carro-2
     command: ["./carro", "2"]
+    volumes:
+      - dados_recarga:/app/json
 
   carro-3:
     build:
@@ -78,6 +83,8 @@ services:
       - rede_recarga
     container_name: carro-3
     command: ["./carro", "3"]
+    volumes:
+      - dados_recarga:/app/json
 
   carro-4:
     build:
@@ -89,6 +96,8 @@ services:
       - rede_recarga
     container_name: carro-4
     command: ["./carro", "4"]
+    volumes:
+      - dados_recarga:/app/json
 
   carro-5:
     build:
@@ -100,7 +109,11 @@ services:
       - rede_recarga
     container_name: carro-5
     command: ["./carro", "5"]
+    volumes:
+      - dados_recarga:/app/json
 
 networks:
   rede_recarga:
     driver: bridge
+volumes:
+  dados_recarga:

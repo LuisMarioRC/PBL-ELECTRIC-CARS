@@ -1,10 +1,12 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -104,11 +106,12 @@ func (c *Carro) SolicitarRecarga() {
 
 			c.Bateria = 100
 			custo := c.CalcularCustoRecarga()
-			fmt.Printf("Carro %s recarga completa. Custo: R$%.2f\n", c.ID, custo)
+			fmt.Printf("Carro %s recarga completa. Custo: R$%.2f.\n", c.ID, custo)
 
 			// Notifica a nuvem
 			connNotify, err := net.Dial("tcp", "nuvem:8080")
 			if err == nil {
+				connNotify.Write([]byte(fmt.Sprintf("Pagamento Recebido|%s\n", c.ID)))
 				message := fmt.Sprintf("Carro recarregado|%s\n", c.Localizacao)
 				connNotify.Write([]byte(message))
 				connNotify.Close()
@@ -150,11 +153,12 @@ func (c *Carro) SolicitarRecarga() {
 		
 			c.Bateria = 100
 			custo := c.CalcularCustoRecarga()
-			fmt.Printf("Carro %s recarga completa. Custo: R$%.2f\n", c.ID, custo)
+			fmt.Printf("Carro %s recarga completa. Custo: R$%.2f.\n", c.ID, custo)
 		
 			// Notifica a nuvem
 			connNotify, err := net.Dial("tcp", "nuvem:8080")
 			if err == nil {
+				connNotify.Write([]byte(fmt.Sprintf("Pagamento Recebido|%s\n", c.ID)))
 				message := fmt.Sprintf("Carro recarregado|%s\n", c.Localizacao)
 				connNotify.Write([]byte(message))
 				connNotify.Close()
@@ -196,5 +200,65 @@ func (c *Carro) AtualizarBateria() {
 }
 
 func (c *Carro) CalcularCustoRecarga() float64 {
-	return 10 + rand.Float64()*(80-10)
+    fmt.Println("Iniciando cálculo de recarga para o carro:", c.ID)
+
+    custo := 10 + rand.Float64()*(80-10)
+    custoFormat := fmt.Sprintf("%.2f", custo)
+
+	
+	date := time.Now()
+	dateFomat := date.Format("2006-01-02 15:04:05")
+
+    // Novo dado a ser adicionado
+    novoRegistro := map[string]interface{}{
+        "CarroID": c.ID,
+		"Ponto de recarga": c.Localizacao,
+        "Custo":   custoFormat,
+        "Data":    dateFomat,
+    }
+
+    err := os.MkdirAll("/app/json", os.ModePerm)
+    if err != nil {
+        fmt.Printf("Carro %s: Erro ao criar diretório JSON: %s\n", c.ID, err.Error())
+        return custo
+    }
+
+    filePath := fmt.Sprintf("/app/json/custo_recarga_carro%s.json", c.ID)
+
+    var registros []map[string]interface{}
+
+    // Se o arquivo já existe, lê os registros existentes
+    if _, err := os.Stat(filePath); err == nil {
+        conteudo, err := os.ReadFile(filePath)
+        if err != nil {
+            fmt.Printf("Carro %s: Erro ao ler arquivo JSON existente: %s\n", c.ID, err.Error())
+        } else {
+            err = json.Unmarshal(conteudo, &registros)
+            if err != nil {
+                fmt.Printf("Carro %s: Erro ao decodificar JSON existente: %s\n", c.ID, err.Error())
+            }
+        }
+    }
+
+    // Adiciona o novo registro
+    registros = append(registros, novoRegistro)
+
+    // Converte tudo novamente para JSON formatado
+    file, err := json.MarshalIndent(registros, "", "  ")
+    if err != nil {
+        fmt.Printf("Carro %s: Erro ao salvar custo da recarga: %s\n", c.ID, err.Error())
+        return custo
+    }
+
+    // Salva no arquivo
+    err = os.WriteFile(filePath, file, 0644)
+    if err != nil {
+        fmt.Printf("Carro %s: Erro ao escrever arquivo JSON: %s\n", c.ID, err.Error())
+    } else {
+        fmt.Printf("Custo da recarga salvo com sucesso em %s\n", filePath)
+    }
+
+    return custo
 }
+
+
