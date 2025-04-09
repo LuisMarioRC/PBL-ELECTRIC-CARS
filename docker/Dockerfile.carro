@@ -1,0 +1,17 @@
+# Etapa de build
+FROM golang:1.24.1 AS builder
+WORKDIR /app
+# Copia todos os arquivos do projeto para o container
+COPY . .  
+ENV CGO_ENABLED=0
+RUN go build -o carro ./cmd/carro/main.go  # Compila o binário do carro
+
+# Etapa de execução
+FROM debian:latest
+WORKDIR /root/
+
+# Copia o binário compilado
+COPY --from=builder /app/carro .
+
+# Define o comando padrão para o container
+CMD ["./carro"]

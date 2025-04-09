@@ -1,0 +1,12 @@
+# Etapa de build
+FROM golang:1.24.1 AS builder
+WORKDIR /app
+COPY . .
+ENV CGO_ENABLED=0
+RUN go build -o nuvem ./cmd/nuvem/main.go
+
+# Etapa de execução
+FROM debian:latest
+WORKDIR /root/
+COPY --from=builder /app/nuvem .
+CMD ["./nuvem"]

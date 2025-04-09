@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  nuvem:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nuvem
+    ports:
+      - "8080:8080"
+    networks:
+      - rede_recarga
+    container_name: nuvem-1
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+    volumes:
+      - dados_recarga:/app/json
+
+  ponto-1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: ponto-1
+    command: ["./ponto", "1"]
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+
+  ponto-2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ponto
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: ponto-2
+    command: ["./ponto", "2"]
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-512m}
+
+  carro-1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-1
+    command: ["./carro", "1"]
+    volumes:
+      - dados_recarga:/app/json
+
+  carro-2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-2
+    command: ["./carro", "2"]
+    volumes:
+      - dados_recarga:/app/json
+
+  carro-3:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-3
+    command: ["./carro", "3"]
+    volumes:
+      - dados_recarga:/app/json
+
+  carro-4:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-4
+    command: ["./carro", "4"]
+    volumes:
+      - dados_recarga:/app/json
+
+  carro-5:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.carro
+    depends_on:
+      - nuvem
+    networks:
+      - rede_recarga
+    container_name: carro-5
+    command: ["./carro", "5"]
+    volumes:
+      - dados_recarga:/app/json
+
+networks:
+  rede_recarga:
+    driver: bridge
+volumes:
+  dados_recarga:
