@@ -90,6 +90,8 @@ Os dados de recarga são armazenados em arquivos JSON no volume compartilhado `d
 
 Você pode ajustar o número de carros e pontos modificando o arquivo `docker-compose.yml`. Para alterar parâmetros como consumo de bateria ou tempos de recarga, edite as constantes em `carro.go`.
 
+## Relatório
+https://drive.google.com/file/d/1SsJ6yc6plZcTNniq3dwsy9NNE7ANg8xJ/view?usp=sharing
 
 ## **Alunos(as)**
 
